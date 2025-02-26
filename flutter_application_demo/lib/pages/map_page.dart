@@ -1,129 +1,186 @@
 import 'dart:async';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 
-class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<MapPage> createState() => _MapPageState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapPageState extends State<MapPage> {
-
-  Location _locationController =  Location();
-
-  final Completer<GoogleMapController> _mapController = Completer<GoogleMapController>();
-
-  static const LatLng _pMumbai = LatLng(18.943888, 72.835991);
-  static const LatLng _pThane = LatLng(19.2183, 72.9781);
-
-  LatLng? _currentP = null;
-
-  Map<PolylineId,Polyline> polylines = {};
+class _MapScreenState extends State<MapScreen> {
+  LatLng? currentLocation;
+  LatLng? destination;
+  List<LatLng> routePoints = [];
+  List<dynamic> searchResults = [];
+  TextEditingController searchController = TextEditingController();
+  final MapController _mapController = MapController();
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    getLocationUpdates().then((_)=>{
-      getPolylinePoints().then((coordinates)=>{
-        getneratePolyLineFromPoints(coordinates),
-      })
+    _getCurrentLocation();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      currentLocation = LatLng(position.latitude, position.longitude);
     });
+    _moveCamera(currentLocation!);
+  }
+
+  void _setDestination(double lat, double lng, String name) {
+    setState(() {
+      destination = LatLng(lat, lng);
+      _drawPolyline();
+    });
+    _moveCamera(destination!);
+  }
+
+  Future<void> _drawPolyline() async {
+    if (currentLocation == null || destination == null) return;
+    final url = Uri.parse(
+        "https://router.project-osrm.org/route/v1/driving/${currentLocation!.longitude},${currentLocation!.latitude};${destination!.longitude},${destination!.latitude}?overview=full&geometries=geojson");
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<dynamic> coordinates = data['routes'][0]['geometry']['coordinates'];
+
+      setState(() {
+        routePoints = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+      });
+    }
+  }
+
+  Future<void> _moveCamera(LatLng pos) async {
+    _mapController.move(pos, 13);
+  }
+
+  Future<void> _searchLocation(String query) async {
+    final url = Uri.parse("https://nominatim.openstreetmap.org/search?format=json&q=$query");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      setState(() {
+        searchResults = json.decode(response.body);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _currentP == null 
-        ? const Center(child: Text("Loading..."),) 
-        : GoogleMap(
-          onMapCreated: ((GoogleMapController controller) => _mapController.complete(controller)) ,
-        initialCameraPosition: CameraPosition(
-          target: _pMumbai,zoom: 13),
-          markers: {
-             Marker(
-              markerId: MarkerId("_currentLocation"),
-              icon: BitmapDescriptor.defaultMarker,
-              position: _currentP!),
-            Marker(
-              markerId: MarkerId("_sourceLocation"),
-              icon: BitmapDescriptor.defaultMarker,
-              position: _pMumbai),
-            Marker(
-              markerId: MarkerId("_destinationLocation"),
-              icon: BitmapDescriptor.defaultMarker,
-              position: _pThane)
-          },
-          polylines: Set<Polyline>.of(polylines.values),
-        ),
-      );
-  }
-
-  Future<void> _cameraToPosition(LatLng pos) async {
-    final GoogleMapController controller = await _mapController.future;
-    CameraPosition _newCameraPosition = CameraPosition(target: pos,zoom: 13);
-    await controller.animateCamera(CameraUpdate.newCameraPosition(_newCameraPosition),);
-  }
-
-  Future<void> getLocationUpdates() async{
-    bool _serviceEnabled;
-    PermissionStatus _permissionGranted;
-
-     _serviceEnabled = await _locationController.serviceEnabled();
-     if (_serviceEnabled) {
-      _serviceEnabled = await _locationController.requestService();
-    } 
-    else {
-      return;
-    }
-
-    _permissionGranted = await _locationController.hasPermission();
-    if(_permissionGranted == PermissionStatus.denied){
-      _permissionGranted = await _locationController.requestPermission();
-      if(_permissionGranted != PermissionStatus.granted){
-        return;
-      }
-    }
-
-    _locationController.onLocationChanged.listen((LocationData currentLocation){
-      if(currentLocation.latitude != null && currentLocation.longitude != null){
-        setState(() {
-          _currentP = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _cameraToPosition(_currentP!);
-        });
-      }
-    });
-  }
-
-  Future<List<LatLng>> getPolylinePoints() async {
-    List<LatLng> polylineCoordinates = [];
-    PolylinePoints polylinePoints = PolylinePoints();
-    PolylineRequest _req = PolylineRequest(
-      origin: PointLatLng(_pMumbai.latitude, _pMumbai.longitude),
-     destination: PointLatLng(_pThane.latitude, _pThane.longitude),
-      mode: TravelMode.driving);
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      request: _req,googleApiKey: "AIzaSyANKB1ZMjK0ZC1kC8lrdxJYxAyPrmgDMD0");
-
-    if(result.points.isNotEmpty){
-      result.points.forEach((PointLatLng point) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      });
-    }
-    else{
-      print(result.errorMessage);
-    }
-    return polylineCoordinates;
-  }
-
-  void getneratePolyLineFromPoints(List<LatLng> polylineCoordinates) async {
-    PolylineId id = PolylineId("poly");
-    Polyline polyline = Polyline(polylineId: id,color: Colors.black,points: polylineCoordinates,width: 8);
-    setState(() {
-      polylines[id] = polyline;
-    });
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: currentLocation ?? LatLng(18.943888, 72.835991),
+              initialZoom: 18,
+            ),
+            children: [
+              TileLayer(
+                tileProvider: CancellableNetworkTileProvider(), // ✅ Using cancellable tile provider
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: ['a', 'b', 'c'],
+                
+              ),
+               RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution(
+                    "© OpenStreetMap contributors",
+                    onTap: () => launchUrl(
+                        Uri.parse("https://www.openstreetmap.org/copyright")),
+                  ),
+                ],
+              ),
+              if (currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: currentLocation!,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+                    ),
+                    if (destination != null)
+                      Marker(
+                        point: destination!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(Icons.location_pin, color: Colors.black, size: 40),
+                      ),
+                  ],
+                ),
+              if (routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: routePoints,
+                      color: Colors.blue,
+                      strokeWidth: 4.0,
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          Positioned(
+            top: 40,
+            left: 20,
+            right: 20,
+            child: Column(
+              children: [
+                TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    hintText: "Search destination",
+                    filled: true,
+                    fillColor: Colors.white,
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () => _searchLocation(searchController.text),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (searchResults.isNotEmpty)
+                  Container(
+                    color: Colors.white,
+                    height: 200,
+                    child: ListView.builder(
+                      itemCount: searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = searchResults[index];
+                        return ListTile(
+                          title: Text(result['display_name']),
+                          onTap: () {
+                            double lat = double.parse(result['lat']);
+                            double lng = double.parse(result['lon']);
+                            _setDestination(lat, lng, result['display_name']);
+                            setState(() {
+                              searchResults = [];
+                              searchController.clear();
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
