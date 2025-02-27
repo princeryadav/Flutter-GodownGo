@@ -31,10 +31,10 @@ jobs:
 
       - name: Install dependencies, build, and test (Flutter)
         run: |
+          cd flutter_application_demo
           flutter pub get
           flutter build apk --release  # Change this based on your target (apk, ios, web, etc.)
-          flutter test --if-present
-
+          flutter test
           
       
       - name: Upload artifact for deployment job
