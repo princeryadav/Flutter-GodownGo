@@ -23,11 +23,11 @@ jobs:
         with:
           node-version: '16.x'
           
-      - name: Set up Java 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'  # Use the Eclipse Temurin distribution
-          java-version: '17'  # You can use '11' if needed
+     # - name: Set up Java 17
+      #  uses: actions/setup-java@v3
+       # with:
+        #  distribution: 'temurin'  # Use the Eclipse Temurin distribution
+         # java-version: '17'  # You can use '11' if needed
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,7 +39,7 @@ jobs:
         run: |
           cd flutter_application_demo
           flutter pub get
-          flutter build apk --release  # Change this based on your target (apk, ios, web, etc.)
+          flutter build web --release  # Change this based on your target (apk, ios, web, etc.)
           # flutter test
           
       
