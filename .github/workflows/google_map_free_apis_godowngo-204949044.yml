@@ -68,5 +68,5 @@ jobs:
         with:
           app-name: 'godowngo-204949044'
           slot-name: 'Production'
-          package: .
+          package:  build/web
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5304467E950341ADA379BB36B6EF0941 }}
