@@ -23,12 +23,6 @@ jobs:
         with:
           node-version: '16.x'
 
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
-
       - name: Install dependencies, build, and test (Flutter)
         run: |
           flutter pub get
