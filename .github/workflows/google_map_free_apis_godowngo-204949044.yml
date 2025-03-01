@@ -67,7 +67,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'godowngo-204949044'
+          app-name: 'godowngo-web-401027116'
           slot-name: 'Production'
           package:  build/web
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5304467E950341ADA379BB36B6EF0941 }}
