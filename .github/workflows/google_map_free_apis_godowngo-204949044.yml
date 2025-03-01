@@ -23,11 +23,8 @@ jobs:
         with:
           node-version: '16.x'
           
-     # - name: Set up Java 17
-      #  uses: actions/setup-java@v3
-       # with:
-        #  distribution: 'temurin'  # Use the Eclipse Temurin distribution
-         # java-version: '17'  # You can use '11' if needed
+      - name: Clear Flutter Cache
+        run: flutter clean
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -47,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: build/web
+          path: flutter_application_demo/build/web
 
   deploy:
     runs-on: ubuntu-latest
