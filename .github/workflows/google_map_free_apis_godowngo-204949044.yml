@@ -31,7 +31,9 @@ jobs:
           cache: true
 
       - name: Clear Flutter Cache
-        run: flutter clean
+        run: |
+          cd flutter_application_demo
+          flutter clean
         
       - name: Install dependencies, build, and test (Flutter)
         run: |
