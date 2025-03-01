@@ -23,15 +23,16 @@ jobs:
         with:
           node-version: '16.x'
           
-      - name: Clear Flutter Cache
-        run: flutter clean
-
+   
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.29.0'  # Specify a known stable version
           cache: true
 
+      - name: Clear Flutter Cache
+        run: flutter clean
+        
       - name: Install dependencies, build, and test (Flutter)
         run: |
           cd flutter_application_demo
