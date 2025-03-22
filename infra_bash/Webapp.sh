@@ -5,18 +5,18 @@ set -e
 
 # Variables
 let "randomIdentifier=$RANDOM*$RANDOM"
-RESOURCE_GROUP=""
+RESOURCE_GROUP="learn-31f5d7c7-ffa5-4dc5-90ad-7408e4a33940"
 LOCATION="eastus"
-APP_NAME="godowngo-$randomIdentifier"
-PLAN_NAME="flutter-asp-godowngo-882001824"
+APP_NAME="godowngo-web-$randomIdentifier"
+PLAN_NAME="godowngo-asp-882001824"
 GITHUB_REPO="https://github.com/princeryadav/Flutter-GodownGo.git"
 BRANCH="google_map_free_apis"
 
 echo "Logging into Azure..."
 az login
 
-# echo "Creating App Service Plan..."
-# az appservice plan create --name $PLAN_NAME --resource-group $RESOURCE_GROUP --sku S1
+echo "Creating App Service Plan..."
+az appservice plan create --name $PLAN_NAME --resource-group $RESOURCE_GROUP --sku S1
 
 echo "Creating Web App..."
 az webapp create --name $APP_NAME --resource-group $RESOURCE_GROUP --plan $PLAN_NAME 

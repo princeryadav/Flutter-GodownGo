@@ -5,6 +5,7 @@ import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_ti
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:namer_app/config.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -20,6 +21,7 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? destination;
   List<LatLng> routePoints = [];
   List<dynamic> searchResults = [];
+  List<LatLng> _nearbyUsers = []; // ✅ Added list for nearby users
   TextEditingController searchController = TextEditingController();
   final MapController _mapController = MapController();
 
@@ -35,7 +37,34 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       currentLocation = LatLng(position.latitude, position.longitude);
     });
+
+    _getNearbyUsers(); // ✅ Fetch nearby users after getting location
+    setState(() {});
     _moveCamera(currentLocation!);
+  }
+
+  Future<void> _getNearbyUsers() async {
+    if (currentLocation == null) return;
+
+    final url = Uri.parse(
+        "${APIConfig.getNearByUsers}?latitude=${currentLocation!.latitude}&longitude=${currentLocation!.longitude}&radiusKm=50");
+
+    try {
+      final response = await http.get(url);
+      print("API Response: ${response.body}");
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        print("API Response Data: $data");
+        setState(() {
+          _nearbyUsers = data.map<LatLng>((user) {
+            return LatLng(user['location']['latitude'], user['location']['longitude']);
+          }).toList();
+        });
+        print("Nearby Users Count: ${_nearbyUsers.length}"); // 
+      }
+    } catch (e) {
+      print("Error fetching nearby users: $e");
+    }
   }
 
   void _setDestination(double lat, double lng, String name) {
@@ -90,12 +119,11 @@ class _MapScreenState extends State<MapScreen> {
             ),
             children: [
               TileLayer(
-                tileProvider: CancellableNetworkTileProvider(), // ✅ Using cancellable tile provider
+                tileProvider: CancellableNetworkTileProvider(),
                 urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
-                
               ),
-               RichAttributionWidget(
+              RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution(
                     "© OpenStreetMap contributors",
@@ -121,6 +149,18 @@ class _MapScreenState extends State<MapScreen> {
                         child: const Icon(Icons.location_pin, color: Colors.black, size: 40),
                       ),
                   ],
+                ),
+              if (_nearbyUsers.isNotEmpty) // ✅ Show nearby users as markers
+                MarkerLayer(
+                  markers: _nearbyUsers.map((userLocation) {
+                     print("Adding marker at: $userLocation"); // ✅ Debugging marker placement
+                    return Marker(
+                      point: userLocation,
+                      width: 30,
+                      height: 30,
+                      child: const Icon(Icons.person_pin, color: Colors.blue, size: 30),
+                    );
+                  }).toList(),
                 ),
               if (routePoints.isNotEmpty)
                 PolylineLayer(
